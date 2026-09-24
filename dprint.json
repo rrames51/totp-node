@@ -1,0 +1,16 @@
+{
+	"lineWidth": 80,
+	"indentWidth": 4,
+	"useTabs": true,
+	"typescript": {
+		"arrowFunction.useParentheses": "preferNone",
+		"jsx.quoteStyle": "preferDouble",
+		"operatorPosition": "sameLine",
+		"quoteStyle": "preferSingle",
+		"semiColons": "always",
+	},
+	"excludes": ["**/node_modules", "**/*-lock.json"],
+	"plugins": [
+		"https://plugins.dprint.dev/typescript-0.96.1.wasm",
+	]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "totp-node",
+  "version": "0.1.0",
+  "description": "A tiny, self-contained implementation of HOTP and TOTP for Node.js and the web.",
+  "keywords": [
+    "totp",
+    "hotp",
+    "node",
+    "web",
+    "authentication"
+  ],
+  "author": "Rohan Ramesh <rrames51@asu.edu>",
+  "license": "Unlicense",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^5.0.1",
+    "jsverify": "^0.8.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}
