@@ -11,6 +11,10 @@
   ],
   "author": "Rohan Ramesh <rrames51@asu.edu>",
   "license": "Unlicense",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rrames51/totp-node"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
