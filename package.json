@@ -1,6 +1,6 @@
 {
   "name": "totp-node",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A tiny, self-contained implementation of HOTP and TOTP for Node.js and the web.",
   "keywords": [
     "totp",

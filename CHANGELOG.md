@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-25
+
 ### Added
 
 - Add `totp.checkTotp` function to validate TOTP tokens with a grace period.
@@ -18,5 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release with `totp.hmacSha1`, `totp.hotp`, `totp.totp`, and
   `totp.b32encode`/`totp.b32decode` functions.
 
-[Unreleased]: https://github.com/rrames51/totp-node/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/rrames51/totp-node/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/rrames51/totp-node/releases/tag/v0.1.1
 [0.1.0]: https://github.com/rrames51/totp-node/releases/tag/v0.1.0
