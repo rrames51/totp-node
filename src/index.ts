@@ -36,6 +36,16 @@ export async function hmacSha1({ key, msg }: {
 	}
 }
 
+/**
+ * Returns the expected HOTP value for the given key, counter, and length. Does
+ * not check a given token; the user is expected to perform the comparison
+ * themselves.
+ *
+ * @see {@link totp} - Performs the same calculation but based on the current
+ * time rather than a counter.
+ * @see {@link checkTotp} - Checks a given TOTP token against the expected value
+ * with an optional grace period.
+ */
 export async function hotp({ key, ctr, length }: {
 	key: Uint8Array<ArrayBuffer>;
 	ctr: bigint;
@@ -57,6 +67,16 @@ export async function hotp({ key, ctr, length }: {
 	return value.toString().padStart(length, '0');
 }
 
+/**
+ * Returns the expected TOTP value for the given key, period, and length. Does
+ * not check a given token; the user is expected to perform the comparison
+ * themselves.
+ *
+ * @see {@link hotp} - Performs the same calculation but based on a counter
+ * rather than the current time.
+ * @see {@link checkTotp} - Checks a given TOTP token against the expected value
+ * with an optional grace period.
+ */
 export async function totp({ key, periodMs = 30_000n, length }: {
 	key: Uint8Array<ArrayBuffer>;
 	periodMs?: bigint;
@@ -64,6 +84,86 @@ export async function totp({ key, periodMs = 30_000n, length }: {
 }): Promise<string> {
 	const ctr = BigInt(new Date().getTime()) / periodMs;
 	return await hotp({ key, ctr, length });
+}
+
+/**
+ * Checks a given TOTP token against the expected value for the current time,
+ * allowing for an optional grace period. If a time other than `BigInt(new
+ * Date().getTime())` is desired, it can be provided via the `nowMs` parameter.
+ *
+ * The first parameter (`token`) is the user-provided TOTP token to check, and
+ * should be the only field the user can control. The second parameter is an
+ * object containing all other parameters, and must be controlled by the library
+ * consumer.
+ *
+ * @returns The timestamp of the next valid period if the token is valid, or
+ * null if it is not. Some applications may wish to use this value to prevent
+ * replay attacks, by ensuring that tokens are only accepted once per period.
+ *
+ * @example
+ *
+ * ```ts
+ * const token = '123456';
+ * const result1 = await checkTotp(token, { key, length: 6 });
+ * if (result1 === null) {
+ *     throw new Error('Invalid TOTP token');
+ * }
+ * const result2 =
+ *     await checkTotp(token, { key, length: 6, cutoffMs: result1 });
+ * if (result2 !== null) {
+ *     throw new Error('Replay attack succeeded');
+ * }
+ * console.log('Replay attack thwarted');
+ * ```
+ */
+export async function checkTotp(token: string, {
+	key,
+	nowMs,
+	cutoffMs,
+	periodMs = 30_000n,
+	gracePeriodMs = 0n,
+	length,
+}: {
+	key: Uint8Array<ArrayBuffer>;
+	nowMs?: bigint;
+	cutoffMs?: bigint;
+	periodMs?: bigint;
+	gracePeriodMs?: bigint;
+	length: number;
+}): Promise<bigint | null> {
+	/* istanbul ignore next */
+	const now = nowMs ?? BigInt(new Date().getTime());
+
+	// start should be the start of the first period that is within the grace
+	// period and after the specified cutoff (if any).
+	let start = (now - gracePeriodMs) / periodMs * periodMs;
+	if (cutoffMs !== undefined) {
+		start = bigintMax(start, ceilDiv(cutoffMs, periodMs) * periodMs);
+	}
+
+	const end = now + gracePeriodMs;
+
+	let result = null;
+	for (let t = start; t <= end; t += periodMs) {
+		const ctr = t / periodMs;
+		const expected = await hotp({ key, ctr, length });
+		if (expected === token && result === null) {
+			result = t + periodMs;
+		}
+	}
+	return result;
+}
+
+export function ceilDiv(a: bigint, b: bigint): bigint {
+	const remainder = a % b;
+	if (remainder === 0n) {
+		return a / b;
+	}
+	return a / b + 1n;
+}
+
+export function bigintMax(a: bigint, b: bigint): bigint {
+	return a > b ? a : b;
 }
 
 // https://datatracker.ietf.org/doc/html/rfc4648#section-6
@@ -107,6 +207,7 @@ export function b32encode(buf: Uint8Array<ArrayBuffer>): string {
  */
 export function b32decode(encoded: string): Uint8Array<ArrayBuffer> {
 	const encLen = BigInt(encoded.length);
+	// dprint-ignore
 	const remainder =
 		[0n, null, 1n, null, 2n, 3n, null, 4n][Number(encLen % 8n)]!;
 	if (remainder === null) {

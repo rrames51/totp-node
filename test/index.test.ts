@@ -102,6 +102,99 @@ describe('totp', () => {
 	});
 });
 
+describe('checkTotp', () => {
+	it('allows a grace period', async () => {
+		const key = new TextEncoder().encode('12345678901234567890');
+		const length = 6;
+		const nowMs = 30_000n * 2n + 5000n;
+		const gracePeriodMs = 30_000n;
+
+		const shouldBeAccepted = ['287082', '359152', '969429'];
+		//                                     ^ nowMs is here
+		for (const token of shouldBeAccepted) {
+			const result = await totp.checkTotp(token, {
+				key,
+				nowMs,
+				gracePeriodMs,
+				length,
+			});
+			expect(result).not.toBeNull();
+		}
+
+		// dprint-ignore
+		const shouldBeRejected = [
+			'755224',                               '338314',
+			'254676', '287922', '162583', '399871', '520489',
+		];
+		for (const token of shouldBeRejected) {
+			const result = await totp.checkTotp(token, {
+				key,
+				nowMs,
+				gracePeriodMs,
+				length,
+			});
+			expect(result).toBeNull();
+		}
+	});
+
+	it('correctly prevents replay attacks', async () => {
+		const key = new TextEncoder().encode('12345678901234567890');
+		const length = 6;
+
+		const nowMs = 1_000_000n;
+		const token = await totp.hotp({ key, ctr: nowMs / 30_000n, length });
+
+		const result = await totp.checkTotp(token, {
+			key,
+			nowMs,
+			length,
+		});
+
+		// The expected result is the start of the next period whose code hasn't
+		// been used. Verify that property by comparing against hotp().
+		expect(result).not.toBeNull();
+		expect(await totp.hotp({ key, ctr: result! / 30_000n, length }))
+			.not.toBe(token);
+		expect(await totp.hotp({ key, ctr: (result! - 1n) / 30_000n, length }))
+			.toBe(token);
+
+		const newToken = await totp.hotp({
+			key,
+			ctr: result! / 30_000n,
+			length,
+		});
+
+		// No matter how wide the grace period is (at least, substantially below
+		// the birthday bound, which it is for the non-pathological key used in
+		// this test) the old token should be rejected.
+		for (
+			let gracePeriodLog10 = 0;
+			gracePeriodLog10 < 6;
+			gracePeriodLog10++
+		) {
+			const gracePeriodMs = 10n ** BigInt(gracePeriodLog10);
+
+			const shouldFail = await totp.checkTotp(token, {
+				key,
+				nowMs: result!,
+				cutoffMs: result!,
+				gracePeriodMs,
+				length,
+			});
+			expect(shouldFail).toBeNull();
+
+			const shouldSucceed = await totp.checkTotp(newToken, {
+				key,
+				nowMs: result!,
+				cutoffMs: result!,
+				gracePeriodMs,
+				length,
+			});
+			expect(shouldSucceed).not.toBeNull();
+		}
+	});
+});
+
 describe('base32', () => {
 	it('should correctly round-trip random Base32 strings', () => {
 		jsc.assert(jsc.forall('string', (str: string) => {
@@ -178,3 +271,17 @@ function hexDecode(hex: string): Uint8Array<ArrayBuffer> {
 function hexEncode(bytes: Uint8Array<ArrayBuffer>): string {
 	return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
+
+describe('helper functions', () => {
+	it('should correctly perform ceilDiv', () => {
+		expect(totp.ceilDiv(10n, 3n)).toBe(4n);
+		expect(totp.ceilDiv(9n, 3n)).toBe(3n);
+		expect(totp.ceilDiv(0n, 3n)).toBe(0n);
+	});
+
+	it('should correctly perform bigintMax', () => {
+		expect(totp.bigintMax(10n, 3n)).toBe(10n);
+		expect(totp.bigintMax(3n, 10n)).toBe(10n);
+		expect(totp.bigintMax(5n, 5n)).toBe(5n);
+	});
+});
